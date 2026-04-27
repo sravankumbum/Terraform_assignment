@@ -3,12 +3,12 @@ provider "aws" {
 }
 
 resource "aws_instance" "app_server" {
-  ami           = "ami-0c02fb55956c7d316" # Amazon Linux 2 (us-east-1)
+  ami           = "ami-0e12ffc2dd465f6e4" # Amazon Linux 2 (ap-south-1)
   instance_type = "t2.micro"
 
   key_name = var.key_name
 
-  security_groups = [aws_security_group.app_sg.name]
+  vpc_security_group_ids = [aws_security_group.app_sg.id]
 
   user_data = file("user_data.sh")
 
