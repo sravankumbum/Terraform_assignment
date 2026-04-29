@@ -13,6 +13,7 @@ resource "aws_vpc" "my_vpc" {
 resource "aws_subnet" "private_subnet"{
     vpc_id = aws_vpc.my_vpc.id
     cidr_block = "10.0.0.0/24"
+    availability_zone = "ap-south-1a" 
 
     tags = {
     Name = "private-subnet"
@@ -112,9 +113,7 @@ resource "aws_instance" "backend_server" {
   vpc_security_group_ids = [aws_security_group.backend_sg.id]
   associate_public_ip_address = false  
 
-  user_data = templatefile("frontend_user_data.sh", {
-    backend_ip = aws_instance.backend_server.private_ip
-  })
+   user_data = file("backend_user_data.sh")
 
   tags = {
     Name = "Flask-Server"
@@ -131,7 +130,9 @@ resource "aws_instance" "frontend_server" {
   vpc_security_group_ids = [aws_security_group.frontend_sg.id]
   associate_public_ip_address = true
 
-  user_data = file("frontend_user_data.sh")
+   user_data = templatefile("frontend_user_data.sh", {
+    backend_ip = aws_instance.backend_server.private_ip
+  })
 
   tags = {
     Name = "Express-Server"

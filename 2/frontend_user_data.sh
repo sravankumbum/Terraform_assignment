@@ -28,7 +28,8 @@ chown -R ec2-user:ec2-user /home/ec2-user/app
 cd ./frontend
 
 #assign backend URL to env variable for frontend to use
-echo "BACKEND_URL=http://${backend_ip}:5000" > .env
+echo "BACKEND_URL=http://${backend_ip}:5000" 
+echo "BACKEND_URL=http://${backend_ip}:5000" >> .env
 
 npm install
 
