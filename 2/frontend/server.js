@@ -6,7 +6,7 @@ const path = require('path');
 const axios = require('axios');
 
 const app = express();
-const BackendURL = process.env.BACKEND_URL || "http://localhost:5000/process";
+const BackendURL = process.env.BACKEND_URL || "http://localhost:5000";
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -35,7 +35,7 @@ app.post('/submit', async (req, res) => {
     }
     try {
         // Flask backend URL - set FLASK_URL env var in ECS task definition
-        const flaskUrl = BackendURL ;
+        const flaskUrl = BackendURL+"/process" ;
         console.log('flaskURL:', flaskUrl,'/n');
         const response = await axios.post(flaskUrl, { name, email });
         console.log('Flask response:', response.data);
