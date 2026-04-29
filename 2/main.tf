@@ -109,9 +109,9 @@ resource "aws_instance" "backend_server" {
 
   key_name = var.key_name
 
-  subnet_id = aws_subnet.private_subnet.id
+  subnet_id = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.backend_sg.id]
-  associate_public_ip_address = false  
+  associate_public_ip_address = true 
 
    user_data = file("backend_user_data.sh")
 
