@@ -23,7 +23,8 @@ resource "aws_ecs_task_definition" "backend_task" {
         "portMappings": [
         {
             "containerPort": 5000,
-            "hostPort": 5000
+            "hostPort": 5000,
+            "name": "backend"
         }
         ]
     }
@@ -45,13 +46,14 @@ resource "aws_ecs_task_definition" "frontend_task" {
         "image": "120091910163.dkr.ecr.ap-south-1.amazonaws.com/my_app/frontend_repo:latest",
         "essential": true,
         "environment": [
-            {"name":"BACKEND_URL","value":"http://backend.todoapp.local:5000"}
+            {"name":"BACKEND_URL","value":"http://backend:5000"}
         ],
         
         "portMappings": [
         {
             "containerPort": 3000,
-            "hostPort": 3000
+            "hostPort": 3000,
+            "name": "frontend"
         }
         ]
     }
@@ -88,6 +90,19 @@ resource "aws_ecs_service" "backend_service" {
   launch_type     = "FARGATE"
 
   desired_count = 1
+  
+  service_connect_configuration {
+  enabled = true
+
+  service {
+    port_name      = "backend"
+    discovery_name = "backend"
+    client_alias {
+        port     = 5000
+        dns_name = "backend"
+        }
+    }
+  }
 
 
   network_configuration {
@@ -104,11 +119,14 @@ resource "aws_ecs_service" "frontend_service" {
 
   desired_count = 1
 
+  service_connect_configuration {
+  enabled = true
+  }
+
   network_configuration {
     subnets         = [aws_subnet.public_subnet.id]
     security_groups = [aws_security_group.frontend_sg.id]
     assign_public_ip = true
   }
 }
-
 
