@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Log everything (very important for debugging)
+exec > /home/ec2-user/user-data.log 2>&1
+
 # Update system
 yum update -y
 
@@ -8,6 +11,7 @@ yum install git -y
 
 # Install Python3 & pip
 yum install python3 -y
+yum install python3-pip -y
 pip3 install flask
 
 # Install Node.js (v18)
@@ -16,10 +20,12 @@ yum install nodejs -y
 
 # Clone your project (IMPORTANT: replace with your repo if needed)
 cd /home/ec2-user
-git clone https://github.com/sravankumbum/Terraform_assignment/tree/main/1 app
-
+git clone https://github.com/sravankumbum/Terraform_assignment.git app
 # Go into project
-cd app
+cd app/1
+
+# Fix ownership
+chown -R ec2-user:ec2-user /home/ec2-user/app
 
 # Backend setup (Flask)
 cd backend
