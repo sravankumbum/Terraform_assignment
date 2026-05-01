@@ -83,6 +83,11 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_service_discovery_private_dns_namespace" "sc_namespace" {
+  name = "todoapp"
+  vpc  = aws_vpc.my_vpc.id
+}
+
 resource "aws_ecs_service" "backend_service" {
   name            = "backend-service"
   cluster         = aws_ecs_cluster.todoapp_cluster.id
@@ -93,6 +98,7 @@ resource "aws_ecs_service" "backend_service" {
   
   service_connect_configuration {
   enabled = true
+  namespace = aws_service_discovery_private_dns_namespace.sc_namespace.arn
 
   service {
     port_name      = "backend"
@@ -116,11 +122,13 @@ resource "aws_ecs_service" "frontend_service" {
   cluster         = aws_ecs_cluster.todoapp_cluster.id
   task_definition = aws_ecs_task_definition.frontend_task.arn
   launch_type     = "FARGATE"
+ 
 
   desired_count = 1
 
   service_connect_configuration {
   enabled = true
+  namespace = aws_service_discovery_private_dns_namespace.sc_namespace.arn
   }
 
   network_configuration {
