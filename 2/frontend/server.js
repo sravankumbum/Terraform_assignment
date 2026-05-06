@@ -36,7 +36,7 @@ app.post('/submit', async (req, res) => {
     try {
         // Flask backend URL - set FLASK_URL env var in ECS task definition
         const flaskUrl = BackendURL+"/process" ;
-        console.log('flaskURL:', flaskUrl,'/n');
+        console.log('flaskURL:', flaskUrl,'\n');
         const response = await axios.post(flaskUrl, { name, email });
         console.log('Flask response:', response.data);
         if (response.data && response.data.success) {
