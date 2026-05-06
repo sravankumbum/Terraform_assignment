@@ -1,107 +1,131 @@
-
-resource "aws_vpc" "my_vpc" {
-    cidr_block = "10.0.0.0/20"
-
-    tags = {
-    Name = "my-vpc"
-    }
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
 }
 
-resource "aws_subnet" "private_subnet"{
-    vpc_id = aws_vpc.my_vpc.id
-    cidr_block = "10.0.0.0/24"
-    availability_zone = "ap-south-1a" 
-
-    tags = {
-    Name = "private-subnet"
-    }
+# Public subnets (ALB)
+resource "aws_subnet" "public_1" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "ap-south-1a"
+  map_public_ip_on_launch = true
 }
 
-resource "aws_subnet" "public_subnet"{
-    vpc_id = aws_vpc.my_vpc.id
-    cidr_block = "10.0.1.0/24"
-    map_public_ip_on_launch = true
-    availability_zone = "ap-south-1a" 
-
-    tags = {
-    Name = "public-subnet"
-    }
+resource "aws_subnet" "public_2" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = "ap-south-1b"
+  map_public_ip_on_launch = true
 }
 
+# Private subnets (ECS)
+resource "aws_subnet" "private_1" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.3.0/24"
+  availability_zone = "ap-south-1a"
+}
+
+resource "aws_subnet" "private_2" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.4.0/24"
+  availability_zone = "ap-south-1b"
+}
+
+# Internet Gateway
 resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.my_vpc.id
-
-  tags = {
-    Name = "my_igw"
-  }
-}
-resource "aws_route_table" "internet_route_table" {
-    vpc_id = aws_vpc.my_vpc.id
-    route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-    }
-    tags = {
-    Name = "internet_route_table"
-    }
-}
-resource "aws_route_table_association" "public_subnet_association" {
-  subnet_id      = aws_subnet.public_subnet.id
-  route_table_id = aws_route_table.internet_route_table.id
+  vpc_id = aws_vpc.main.id
 }
 
-resource "aws_security_group" "frontend_sg" {
-    name="frontend_sg"
-    vpc_id = aws_vpc.my_vpc.id
-
-    ingress {
-        from_port   = 22
-        to_port     = 22
-        protocol    = "tcp"
-        cidr_blocks = ["0.0.0.0/0"]
-    }
-
-    ingress {
-    from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-    egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+# Public route table
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.main.id
 }
 
-resource "aws_security_group" "backend_sg" {
-    name="backend_sg"
-    vpc_id = aws_vpc.my_vpc.id
+resource "aws_route" "public_internet" {
+  route_table_id         = aws_route_table.public_rt.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.igw.id
+}
+
+resource "aws_route_table_association" "pub1" {
+  subnet_id      = aws_subnet.public_1.id
+  route_table_id = aws_route_table.public_rt.id
+}
+
+resource "aws_route_table_association" "pub2" {
+  subnet_id      = aws_subnet.public_2.id
+  route_table_id = aws_route_table.public_rt.id
+}
+
+# Private route table (no internet)
+resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.main.id
+}
+
+resource "aws_route_table_association" "priv1" {
+  subnet_id      = aws_subnet.private_1.id
+  route_table_id = aws_route_table.private_rt.id
+}
+
+resource "aws_route_table_association" "priv2" {
+  subnet_id      = aws_subnet.private_2.id
+  route_table_id = aws_route_table.private_rt.id
+}
+
+# -------------------------
+# VPC Endpoints (no NAT)
+# -------------------------
+resource "aws_security_group" "vpce_sg" {
+  name   = "vpce-sg"
+  vpc_id = aws_vpc.main.id
 
     ingress {
-        from_port   = 22
-        to_port     = 22
-        protocol    = "tcp"
-        cidr_blocks = ["0.0.0.0/0"]
-    }
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [
+      aws_security_group.frontend_sg.id,
+      aws_security_group.backend_sg.id
+    ]
+  }
 
-    ingress {
-    from_port   = 5000
-    to_port     = 5000
-    protocol    = "tcp"
-    security_groups = [aws_security_group.frontend_sg.id]
-  }
-    ingress {
-  from_port   = 5000
-  to_port     = 5000
-  protocol    = "tcp"
-  cidr_blocks = ["10.0.0.0/20"]
-  }
-    egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+}
+
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id             = aws_vpc.main.id
+  service_name       = "com.amazonaws.ap-south-1.ecr.api"
+  vpc_endpoint_type  = "Interface"
+  private_dns_enabled = true
+  subnet_ids         = [aws_subnet.private_1.id, aws_subnet.private_2.id]
+  security_group_ids = [aws_security_group.vpce_sg.id]
+}
+
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id             = aws_vpc.main.id
+  service_name       = "com.amazonaws.ap-south-1.ecr.dkr"
+  vpc_endpoint_type  = "Interface"
+  private_dns_enabled = true
+  subnet_ids         = [aws_subnet.private_1.id, aws_subnet.private_2.id]
+  security_group_ids = [aws_security_group.vpce_sg.id]
+}
+
+resource "aws_vpc_endpoint" "logs" {
+  vpc_id             = aws_vpc.main.id
+  service_name       = "com.amazonaws.ap-south-1.logs"
+  vpc_endpoint_type  = "Interface"
+  private_dns_enabled = true
+  subnet_ids         = [aws_subnet.private_1.id, aws_subnet.private_2.id]
+  security_group_ids = [aws_security_group.vpce_sg.id]
+}
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = aws_vpc.main.id
+  service_name = "com.amazonaws.ap-south-1.s3"
+
+  vpc_endpoint_type = "Gateway"
+
+  route_table_ids = [
+    aws_route_table.private_rt.id
+  ]
 }
