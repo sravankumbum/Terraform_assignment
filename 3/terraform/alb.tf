@@ -24,7 +24,7 @@ resource "aws_lb" "alb" {
 }
 
 resource "aws_lb_target_group" "tg" {
-  name        = "frontend-tg"
+  name     = "frontend-tg"
   port        = 3000
   protocol    = "HTTP"
   target_type = "ip"
